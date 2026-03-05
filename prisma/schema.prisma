@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoleCode {
+  ADMIN
+  GERENTE
+  AGENTE
+  FINANCEIRO
+  OPERACOES
+  LEITURA
+}
+
+enum LeadStage {
+  NOVO
+  QUALIFICANDO
+  PROPOSTA
+  GANHO
+  PERDIDO
+}
+
+model Organization {
+  id          String     @id @default(cuid())
+  name        String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  users       User[]
+  leads       Lead[]
+  auditLogs   AuditLog[]
+  permissions Permission[]
+}
+
+model User {
+  id             String       @id @default(cuid())
+  organizationId String
+  name           String
+  email          String       @unique
+  passwordHash   String
+  role           RoleCode
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  auditLogs      AuditLog[]
+}
+
+model Permission {
+  id             String       @id @default(cuid())
+  organizationId String
+  role           RoleCode
+  resource       String
+  action         String
+  createdAt      DateTime     @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, role, resource, action])
+}
+
+model Lead {
+  id             String       @id @default(cuid())
+  organizationId String
+  ownerUserId    String?
+  fullName       String
+  email          String?
+  phone          String?
+  origin         String
+  stage          LeadStage    @default(NOVO)
+  tags           String[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId, stage])
+}
+
+model AuditLog {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String?
+  entity         String
+  entityId       String
+  action         String
+  beforeJson     Json?
+  afterJson      Json?
+  createdAt      DateTime     @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User?        @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, entity, entityId])
+}
